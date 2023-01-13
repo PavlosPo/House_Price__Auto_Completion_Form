@@ -24,6 +24,17 @@ def find_houses():
                                   class_="ListItem-c11n-8-81-1__sc-10e22w8-0 srp__hpnp3q-0 enEXBq with_constellation")
     # Itterate per house
     for house in section_of_houses:
-        address = house.find(name="a", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 lpqUkW property-card-link").getText()
-        pprint(address)
+        info = house.find(name="a", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 lpqUkW property-card-link")
+
+        if info is None:  # some info is None
+            continue
+        # Links
+        if info.get("href").startswith("/b/"):  # It means we will get partial link
+            # Add the rest link
+            html_links = "https://www.zillow.com/" + info.get("href")
+            print(html_links)
+        # Addresses
+        addresses = info.find()
+
+
 find_houses()
