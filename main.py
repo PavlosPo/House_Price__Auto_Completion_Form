@@ -34,7 +34,10 @@ def find_houses():
             html_links = "https://www.zillow.com/" + info.get("href")
             print(html_links)
         # Addresses
-        addresses = info.find()
+        address = info.find(name="address").getText()
+        print(address)
+
+
 
 
 find_houses()
