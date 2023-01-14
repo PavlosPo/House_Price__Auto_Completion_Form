@@ -19,26 +19,33 @@ headers = {
 
 
 # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-def find_houses() -> [list, list, list]:
+def find_houses(page_source=None) -> [list, list, list]:
     """Returns a List of 3 Lists, index: per house.
      1. List of Addreses,
      2. List of Prices,
      3. List of Links
+     You can provide a custom page source, if not, it will find it's own through the Links HardCoded
     """
-    # The session variable is for retrying after failing to establishing connection
-    # If request sessions will be applied periodicaly
-    # Link: https://stackoverflow.com/a/47475019
-    session = requests.Session()
-    retry = Retry(connect=3, backoff_factor=0.5)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    # Getting the data
-    response = session.get(url=house_link, headers=headers)
-    response.raise_for_status()
-    soup = BeautifulSoup(response.text, "lxml")
+    if page_source is None:  # If page_source is not provided, will find it's own
+        # The session variable is for retrying after failing to establishing connection
+        # If request sessions will be applied periodicaly
+        # Link: https://stackoverflow.com/a/47475019
+        print("Page_Source Not provided, calculating it's own")
+        session = requests.Session()
+        retry = Retry(connect=3, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        # Getting the data
+        response = session.get(url=house_link, headers=headers)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "lxml")
+    else:
+        print("Page Source Provided, continue with that")
+        soup = BeautifulSoup(markup=page_source, parser="lxml")
+
     # Starting the scrapping
-    result_page = soup.find(name="div", id="search-page-list-container")  # Here loads the results
+    result_page = soup.find(name="div", id="grid-search-results")  # Here loads the results
     section_of_houses = result_page.find_all(name="div", class_="StyledCard-c11n-8-81-1__sc-rmiu6p-0 jHQvmL StyledPropertyCardBody-c11n-8-81-1__sc-1p5uux3-0 ekTIIR")  # here we go on each house
     # Itterate per house to find informations
     print("********** Start ********")
@@ -55,7 +62,6 @@ def find_houses() -> [list, list, list]:
             if link.startswith("/b/"):  # It means we will get partial link
                 # Add the rest link
                 link = "https://www.zillow.com/" + link
-                print(link)
                 list_of_links.append(link)
             print(link)
 
