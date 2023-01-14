@@ -111,11 +111,38 @@ def fill_out_form(address_input: str, price_input: str, link_input: str):
     time.sleep(1)
 
 
+def scroll_to_bottom():
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    driver.get(house_link)
+    driver.implicitly_wait(10)
+    SCROLL_PAUSE_TIME = 0.5
+    SCROLL_TIMES = 5
+    # Get scroll height
+    last_height = driver.execute_script("return document.body.scrollHeight")
+
+    while SCROLL_TIMES >= 0:
+        # Scroll down to bottom
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+        # Wait to load page
+        time.sleep(SCROLL_PAUSE_TIME)
+
+        # Calculate new scroll height and compare with last scroll height
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+        SCROLL_TIMES = SCROLL_TIMES - 1
+    return driver.page_source
+
+
 # MAIN
-info = find_houses()
+page_source = scroll_to_bottom()
+info = find_houses(page_source=page_source)
 addresses = info["address"]
 prices = info["price"]
 links = info["link"]
+print(len(links))
 for index in range(len(addresses)):  # Either addresses or prices or links, has the same length
     address = addresses[index]
     print(address)
