@@ -34,45 +34,46 @@ def find_houses() -> [list, list, list]:
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     # Getting the data
-    response = session.get(url=house_link, headers=headers).text
-    soup = BeautifulSoup(response, "lxml")
-    # all_houses_list = soup.find(name="ul",
-    #                             class_="List-c11n-8-81-1__sc-1smrmqp-0 srp__sc-1psn8tk-0 dXyjtp photo-cards with_constellation")
-    # section_of_houses = all_houses_list.find_all(name="li",
-    #                                              class_="ListItem-c11n-8-81-1__sc-10e22w8-0 srp__hpnp3q-0 enEXBq with_constellation")
-
-    section_of_houses = soup.find_all(name="article", class_="StyledPropertyCard-c11n-8-81-1__sc-jvwq6q-0 gItDJf srp__sc-15y3msw-0 epgJFL property-card list-card_for-rent list-card_building list-card_not-saved")
+    response = session.get(url=house_link, headers=headers)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "lxml")
+    # Starting the scrapping
+    result_page = soup.find(name="div", id="search-page-list-container")  # Here loads the results
+    section_of_houses = result_page.find_all(name="div", class_="StyledCard-c11n-8-81-1__sc-rmiu6p-0 jHQvmL StyledPropertyCardBody-c11n-8-81-1__sc-1p5uux3-0 ekTIIR")  # here we go on each house
     # Itterate per house to find informations
-    # print(section_of_houses)
-    print("**********\n\n\n********")
+    print("********** Start ********")
+    pprint(section_of_houses)
     list_of_links = []
     list_of_addresses = []
     list_of_prices = []
-    for house in section_of_houses:
+    for house in section_of_houses:  # itterate through the houses
         try:  # Some times returns None Type and we get a NoneType Error
-            info = house.find(name="div",
-                          class_="StyledPropertyCardDataWrapper-c11n-8-81-1__sc-1omp4c3-0 fEStTH property-card-data")
+
             # Links
-            link = info.find(name='a').get("href")
-            print("**********\n\n\n********")
+            print("********** Link Section ********")
+            link = house.find(name="a", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 lpqUkW property-card-link").get("href")
             if link.startswith("/b/"):  # It means we will get partial link
                 # Add the rest link
-                html_links = "https://www.zillow.com/" + info.get("href")
-                print(html_links)
-                list_of_links.append(html_links)
+                link = "https://www.zillow.com/" + link
+                print(link)
+                list_of_links.append(link)
+            print(link)
+
+            print("********** Address Section ********")
             # Addresses
-            address = info.find(name="address").getText()
+            address = house.find(name="address").getText()
             print(address)
             list_of_addresses.append(address)
+            print("********** Price Section ********")
             # Prices
-            price = info.find(name="div", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 wgiFT").getText()
+            price = house.find(name="div", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 wgiFT").span.getText()
             pprint(price)
             list_of_prices.append(price)
-
-            return [list_of_addresses, list_of_prices, list_of_links]
         except:
-            print("Continue..")
+            print("Skipped because of an Error..\n")
             continue
+    # Return the Lists after all
+    return [list_of_addresses, list_of_prices, list_of_links]
 
 
 find_houses()
