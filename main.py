@@ -5,6 +5,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.wait import WebDriverWait
 from bs4 import BeautifulSoup
 import requests
+import re  # Regex Spliting
 from pprint import pprint
 import requests
 from requests.adapters import HTTPAdapter
@@ -40,13 +41,16 @@ def find_houses(page_source=None) -> [list, list, list]:
         response = session.get(url=house_link, headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "lxml")
-    else:
+    else:  # if page source is provided then continue with that
         print("Page Source Provided, continue with that")
         soup = BeautifulSoup(markup=page_source, parser="lxml")
 
     # Starting the scrapping
-    result_page = soup.find(name="div", id="grid-search-results")  # Here loads the results
-    section_of_houses = result_page.find_all(name="div", class_="StyledCard-c11n-8-81-1__sc-rmiu6p-0 jHQvmL StyledPropertyCardBody-c11n-8-81-1__sc-1p5uux3-0 ekTIIR")  # here we go on each house
+    result_page = soup.find(name="ul",
+                            class_="List-c11n-8-81-1__sc-1smrmqp-0 srp__sc-1psn8tk-0 dXyjtp photo-cards "
+                                   "with_constellation")  # Here loads the results
+    section_of_houses = result_page.find_all(name="li")  # here we go on each house section
+    print("len of section of houses:", len(section_of_houses))
     # Itterate per house to find informations
     print("********** Start ********")
     pprint(section_of_houses)
@@ -55,25 +59,27 @@ def find_houses(page_source=None) -> [list, list, list]:
     list_of_prices = []
     for house in section_of_houses:  # itterate through the houses
         try:  # Some times returns None Type and we get a NoneType Error
-
             # Links
+            link = house.find(name="a",
+                              class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 lpqUkW property-card-link").get(
+                "href")
             print("********** Link Section ********")
-            link = house.find(name="a", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 lpqUkW property-card-link").get("href")
             if link.startswith("/b/"):  # It means we will get partial link
                 # Add the rest link
                 link = "https://www.zillow.com/" + link
                 list_of_links.append(link)
             print(link)
-
-            print("********** Address Section ********")
             # Addresses
             address = house.find(name="address").getText()
+            print("********** Address Section ********")
             print(address)
             list_of_addresses.append(address)
-            print("********** Price Section ********")
             # Prices
-            price = house.find(name="div", class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 wgiFT").span.getText()
-            pprint(price)
+            price = house.find(name="div",
+                               class_="StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0 wgiFT").span.getText()
+            price = price.replace("$", "").replace("+", "").split()[0]
+            print("********** Price Section ********")
+            print(price)
             list_of_prices.append(price)
         except:
             print("Skipped because of an Error..\n")
