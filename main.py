@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.wait import WebDriverWait
 from bs4 import BeautifulSoup
+from selenium.webdriver.support import expected_conditions as EC
 import requests
 import re  # Regex Spliting
 from pprint import pprint
@@ -21,18 +22,18 @@ headers = {
     'Connection': "keep-alive"}
 
 
-def find_houses(page_source=None) -> [list, list, list]:
-    """Returns a List of 3 Lists, index: per house.
-     1. List of Addreses,
-     2. List of Prices,
-     3. List of Links
+def find_houses(page_source=None) -> (list, list, list):
+    """Returns a Dictionary of All the Addresses, Prices, and Links
+     address: List of Addreses,
+     price: List of Prices,
+     link: List of Links
      You can provide a custom page source, if not, it will find it's own through the Links HardCoded
     """
     if page_source is None:  # If page_source is not provided, will find it's own
         # The session variable is for retrying after failing to establishing connection
         # If request sessions will be applied periodicaly
         # Link: https://stackoverflow.com/a/47475019
-        print("Page_Source Not provided, calculating it's own")
+        print("Page Source NOT provided, calculating it's own")
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=0.5)
         adapter = HTTPAdapter(max_retries=retry)
@@ -43,15 +44,14 @@ def find_houses(page_source=None) -> [list, list, list]:
         response.raise_for_status()
         soup = BeautifulSoup(response.text, "html.parser")
     else:  # if page source is provided then continue with that
-        print("Page Source Provided, continue with that")
+        print("Page Source Provided, Continue with that")
         soup = BeautifulSoup(page_source, "html.parser")
 
-    all_link_elements = soup.select("#grid-search-results ul li article div div a" 
+    all_link_elements = soup.select("#grid-search-results ul li article div div a"
                                     ".StyledPropertyCardDataArea-c11n-8-81-1__sc-yipmu-0")
     all_links = []
     for link in all_link_elements:
         href = link["href"]
-        print(href)
         if "http" not in href:
             all_links.append(f"https://www.zillow.com{href}")
         else:
@@ -66,46 +66,63 @@ def find_houses(page_source=None) -> [list, list, list]:
         # Get the prices. Single and multiple listings have different tag & class structures
         try:
             # Price with only one listing
-            price = element.select("span")[0].get_text()
+            price = element.select("span")[0].get_text().replace("$", "").replace("+", "").replace("/", " ").split()[0]
         except IndexError:
             print('Multiple listings for the card')
             # Price with multiple listings
-            price = element.select("li")[0].get_text()
+            price = element.select("li")[0].get_text().replace("$", "").replace("+", "").replace("/", " ").split()[0]
         finally:
             all_prices.append(price)
-    return [all_addresses, all_prices, all_links, (len(all_addresses), len(all_prices), len(all_links))]
+    return {"address": all_addresses,
+            "price": all_prices,
+            "link": all_links}
 
 
+def fill_out_form(address_input: str, price_input: str, link_input: str):
+    """
+    It Fills out the google form with the provided info
+    :return:
+    """
+    # Initial Selenium
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    # Go to Form Page
+    driver.get(form_link)
+    # Input information on the Google Form
+    wait = WebDriverWait(driver, 10)  # Inital a WebDriverWait element to fill out the form
+    address_form = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div['
+                                                                    '1]/div/div/div[2]/div/div[1]/div/div[1]/input')))
+    address_form.send_keys(address_input)
+    time.sleep(1)
+    price_form = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div['
+                                                                  '2]/div/div/div[2]/div/div[1]/div/div[1]/input')))
+    price_form.send_keys(price_input)
+    time.sleep(1)
+    link_form = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[2]/div['
+                                                                 '3]/div/div/div[2]/div/div[1]/div/div[1]/input')))
+    link_form.send_keys(link_input)
+    time.sleep(1)
+    # Press the Submit Button
+    submit_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="mG61Hd"]/div[2]/div/div[3]/div[1]/div['
+                                                                     '1]/div/span/span')))
+    submit_button.click()
+    time.sleep(1)
+    # Refresh
+    driver.get(form_link)
+    time.sleep(1)
 
-#
-# find_houses()
-#
-# # Selenium Section
-# def fill_out_form():
-#     # Initial Selenium
-#     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-#     # Go to Form Page
-#     driver.get(form_link)
-#     # Retrieve informations from Houses
-#     # [address, price, link] = find_houses()
-#     forms_to_complete = [item.find_element(by=By.TAG_NAME, value="input") for item in driver.find_elements(by=By.CLASS_NAME, value="Xb9hP")]  # 3 questions -> 3 items in the list
-#     # Input information on the Google Form
-#     address_form = WebDriverWait(driver, 1012121).until(lambda driver: driver.find_element(by=By.CSS_SELECTOR, value='.ndJi5d .snByac')).click()
-#     address_form.send_keys("aswdeq")
-#     time.sleep(1)
-#     price_form = forms_to_complete[1]
-#     time.sleep(1)
-#     link_form = forms_to_complete[2]
-#     time.sleep(10)
-#     print(address_form, price_form, link_form)
-#     # Press the Submit Button
-#     submit_button = driver.find_element(by=By.XPATH, value='//*[@id="mG61Hd"]/div[2]/div/div[3]/div[1]/div['
-#                                                             '1]/div/span/span')
-#     submit_button.click()
-#     time.sleep(1)
-#     # Refresh
-#     driver.get(form_link)
-#
-# # fill_out_form()
-items = find_houses()
-print(items[0], items[1], items[2], items[3])
+
+# MAIN
+info = find_houses()
+addresses = info["address"]
+prices = info["price"]
+links = info["link"]
+for index in range(len(addresses)):  # Either addresses or prices or links, has the same length
+    address = addresses[index]
+    print(address)
+    price = prices[index]
+    print(price)
+    link = links[index]
+    print(link)
+    fill_out_form(address_input=address,
+                  price_input=price,
+                  link_input=link)
